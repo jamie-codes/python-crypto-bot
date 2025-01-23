@@ -1,5 +1,5 @@
 # Cryptocurrency Arbitrage Bot
-Auther: Jamie McKee
+Author: Jamie McKee
 
 This Python script is an automated cryptocurrency arbitrage trading bot that utilizes the [CCXT library](https://github.com/ccxt/ccxt) to identify and execute profitable trades across multiple exchanges, initially only on a test network. The bot is designed to trade the following cryptocurrency pairs:
 
