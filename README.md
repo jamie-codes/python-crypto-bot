@@ -94,7 +94,13 @@ You can adjust the following parameters in the script:
 3. **Portfolio Rebalancing**: Automate fund transfers between exchanges.
 4. **Simulation Mode**: Test the bot in a non-trading environment.
 5. **Database Integration**: Store historical data for performance analysis.
-
+6. **Error Handling and Resilience**: Implement retry logic with exponential backoff for failed API calls and handle network issues gracefully.
+7. **Web or Command Line Dashboard**: Create a real-time dashboard to display arbitrage opportunities, account balances, and trade history.
+8. **Email or SMS Alerts**: Notify users when significant arbitrage opportunities or errors occur.
+9. **Latency and Slippage Mitigation**: Monitor latency between exchanges and account for slippage in profit calculations.
+10. **Rate Limiting Compliance**: Respect exchange rate limits to avoid temporary bans.
+11. **Machine Learning Optimization**: Use machine learning to predict and filter profitable opportunities.
+12. **Twitter/Social Media sentiment analysis**: Look into IBKR for sentiment values from news wire that includes tweets that impact crypto stocks.
 ---
 
 
