@@ -21,12 +21,13 @@ ARBITRAGE_THRESHOLD = Decimal('0.5')  # Minimum percentage profit for arbitrage
 TRADE_AMOUNT = Decimal('1')  # Default amount to trade (can be adjusted dynamically)
 
 # Email notification settings
+# Change these in the private version
 EMAIL_ENABLED = True
-SMTP_SERVER = 'smtp.example.com'
+SMTP_SERVER = 'smtp.live.co.uk' # change with private version
 SMTP_PORT = 587
-EMAIL_USERNAME = 'your-email@example.com'
-EMAIL_PASSWORD = 'your-password'
-NOTIFICATION_RECIPIENT = 'recipient@example.com'
+EMAIL_USERNAME = 'email@live.co.uk' #hidden
+EMAIL_PASSWORD = 'xxxx'
+NOTIFICATION_RECIPIENT = 'recipient@test.com'
 
 # Initialize exchanges
 exchanges = {}
