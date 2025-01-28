@@ -6,6 +6,7 @@ from decimal import Decimal
 import smtplib
 from email.mime.text import MIMEText
 import requests
+import time
 from functools import wraps
 
 # Load configuration from config.yaml
@@ -13,10 +14,7 @@ with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, config['logging']['level']),
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Extract configurations
 EXCHANGES = config['exchanges']
@@ -38,8 +36,10 @@ CHAT_ID = config['telegram']['chat_id']
 MAX_RETRIES = config['retry']['max_retries']
 RETRY_DELAY = config['retry']['delay']
 
-# Retry decorator
-def retry(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
+
+
+def retry(max_retries=3, delay=1):
+    ''' Retry decorator for when network issues or API rate limits can cause temporary failures'''
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -55,6 +55,7 @@ def retry(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
         return wrapper
     return decorator
 
+
 # Initialize exchanges
 exchanges = {}
 for exchange_id in EXCHANGES:
@@ -66,14 +67,18 @@ for exchange_id in EXCHANGES:
     except Exception as e:
         logging.error(f"Failed to connect to {exchange_id}: {e}")
 
+@retry(max_retries=5, delay=0.5)
 def send_telegram_notification(message):
-    if TELEGRAM_ENABLED:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        payload = {'chat_id': CHAT_ID, 'text': message}
-        requests.post(url, json=payload)
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message
+    }
+    requests.post(url, json=payload)
 
-@retry()
+@retry(max_retries=5, delay=2)
 def fetch_prices():
+    """Fetch the latest bid and ask prices from all exchanges."""
     prices = {}
     for exchange_id, exchange in exchanges.items():
         for symbol in SYMBOLS:
@@ -89,7 +94,9 @@ def fetch_prices():
                 logging.warning(f"Error fetching ticker for {symbol} on {exchange_id}: {e}")
     return prices
 
+
 def find_arbitrage(prices):
+    """Find arbitrage opportunities based on bid-ask spreads."""
     opportunities = []
     for symbol in SYMBOLS:
         for buy_exchange_id, buy_prices in prices.items():
@@ -97,6 +104,8 @@ def find_arbitrage(prices):
                 if buy_exchange_id != sell_exchange_id and symbol in buy_prices and symbol in sell_prices:
                     buy_price = buy_prices[symbol]['ask']
                     sell_price = sell_prices[symbol]['bid']
+
+                    # Calculate potential profit
                     profit_percent = ((sell_price - buy_price) / buy_price) * 100
                     if profit_percent >= ARBITRAGE_THRESHOLD:
                         opportunities.append({
@@ -109,54 +118,92 @@ def find_arbitrage(prices):
                         })
     return opportunities
 
+
 def execute_trade(opportunity):
+    """Execute arbitrage trade."""
     buy_exchange = exchanges[opportunity['buy_exchange']]
     sell_exchange = exchanges[opportunity['sell_exchange']]
     symbol = opportunity['symbol']
+
     try:
-        base_currency, quote_currency = symbol.split('/')
+        # Check balances dynamically
+        base_currency = symbol.split('/')[0]
+        quote_currency = symbol.split('/')[1]
+
         buy_balance = buy_exchange.fetch_balance()[quote_currency]['free']
         sell_balance = sell_exchange.fetch_balance()[base_currency]['free']
+
         trade_amount = min(TRADE_AMOUNT, sell_balance, buy_balance / opportunity['buy_price'])
+
         if trade_amount <= 0:
             logging.warning(f"Insufficient balance for trading {symbol}. Skipping.")
             return
-        buy_exchange.create_order(symbol, 'market', 'buy', float(trade_amount))
-        sell_exchange.create_order(symbol, 'market', 'sell', float(trade_amount))
+
+        # Place buy order
+        logging.info(f"Placing buy order on {opportunity['buy_exchange']} at {opportunity['buy_price']} for {trade_amount} {base_currency}")
+        buy_order = buy_exchange.create_order(
+            symbol=symbol, type='market', side='buy', amount=float(trade_amount)
+        )
+
+        # Place sell order
+        logging.info(f"Placing sell order on {opportunity['sell_exchange']} at {opportunity['sell_price']} for {trade_amount} {base_currency}")
+        sell_order = sell_exchange.create_order(
+            symbol=symbol, type='market', side='sell', amount=float(trade_amount)
+        )
+
         logging.info(f"Trade executed: Bought {symbol} on {opportunity['buy_exchange']} and sold on {opportunity['sell_exchange']}. Profit: {opportunity['profit_percent']:.2f}%")
+
+        # Send email notification
         if EMAIL_ENABLED:
             send_email_notification(opportunity, trade_amount)
+        # Send telegram notification
         if TELEGRAM_ENABLED:
-            send_telegram_notification(f"Arbitrage trade executed: {opportunity}")
+            notification_message = f"{opportunity} - {trade_amount}"
+            send_telegram_notification(notification_message)
+
     except Exception as e:
         logging.error(f"Failed to execute trade: {e}")
 
+
 def send_email_notification(opportunity, trade_amount):
+    """Send email notification for executed trades."""
     try:
         msg = MIMEText(f"Arbitrage Trade Executed:\n\nSymbol: {opportunity['symbol']}\nBuy Exchange: {opportunity['buy_exchange']}\nSell Exchange: {opportunity['sell_exchange']}\nBuy Price: {opportunity['buy_price']}\nSell Price: {opportunity['sell_price']}\nTrade Amount: {trade_amount}\nProfit: {opportunity['profit_percent']:.2f}%")
         msg['Subject'] = "Arbitrage Trade Notification"
         msg['From'] = EMAIL_USERNAME
         msg['To'] = NOTIFICATION_RECIPIENT
+
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
             server.send_message(msg)
-        logging.info("Email notification sent.")
+
+        logging.info(f"Email notification sent to {NOTIFICATION_RECIPIENT}")
     except Exception as e:
         logging.error(f"Failed to send email notification: {e}")
+
 
 if __name__ == '__main__':
     logging.info("Starting arbitrage bot...")
     while True:
         try:
+            # Fetch prices
             prices = fetch_prices()
+
+            # Find arbitrage opportunities
             opportunities = find_arbitrage(prices)
             if opportunities:
                 for opportunity in opportunities:
+                    logging.info(f"Arbitrage opportunity for {opportunity['symbol']}: Buy on {opportunity['buy_exchange']} at {opportunity['buy_price']}, sell on {opportunity['sell_exchange']} at {opportunity['sell_price']}, profit: {opportunity['profit_percent']:.2f}%")
+
+                    # Execute the trade
                     execute_trade(opportunity)
             else:
                 logging.info("No arbitrage opportunities found.")
+
+            # Wait before the next iteration
             time.sleep(5)
+
         except KeyboardInterrupt:
             logging.info("Arbitrage bot stopped by user.")
             break
