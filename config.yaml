@@ -1,0 +1,33 @@
+logging:
+  level: INFO
+
+exchanges:
+  - binance
+  - kraken
+  - coinbasepro
+
+arbitrage:
+  symbols:
+    - ICP/USDT
+    - SOL/USDT
+    - BASE/USDT
+    - NEAR/USDT
+  threshold: 0.5  # Minimum percentage profit for arbitrage
+  trade_amount: 1  # Default amount to trade
+
+email:
+  enabled: true
+  smtp_server: smtp.live.co.uk
+  smtp_port: 587
+  username: email@live.co.uk
+  password: xxxx
+  recipient: recipient@test.com
+
+telegram:
+  enabled: true
+  bot_token: xxx
+  chat_id: xxx
+
+retry:
+  max_retries: 3
+  delay: 1

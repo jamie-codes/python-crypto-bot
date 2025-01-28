@@ -1,38 +1,59 @@
 import ccxt
 import time
 import logging
+import yaml
 from decimal import Decimal
 import smtplib
 from email.mime.text import MIMEText
 import requests
+import time
+from functools import wraps
+
+# Load configuration from config.yaml
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Exchanges to include in arbitrage
-EXCHANGES = [
-    'binance',
-    'kraken',
-    'coinbasepro'
-]
+# Extract configurations
+EXCHANGES = config['exchanges']
+SYMBOLS = config['arbitrage']['symbols']
+ARBITRAGE_THRESHOLD = Decimal(str(config['arbitrage']['threshold']))
+TRADE_AMOUNT = Decimal(str(config['arbitrage']['trade_amount']))
 
-# Arbitrage settings
-SYMBOLS = ['ICP/USDT', 'SOL/USDT', 'BASE/USDT', 'NEAR/USDT']  # The trading pairs to arbitrage
-ARBITRAGE_THRESHOLD = Decimal('0.5')  # Minimum percentage profit for arbitrage
-TRADE_AMOUNT = Decimal('1')  # Default amount to trade (can be adjusted dynamically)
+EMAIL_ENABLED = config['email']['enabled']
+SMTP_SERVER = config['email']['smtp_server']
+SMTP_PORT = config['email']['smtp_port']
+EMAIL_USERNAME = config['email']['username']
+EMAIL_PASSWORD = config['email']['password']
+NOTIFICATION_RECIPIENT = config['email']['recipient']
 
-# Communication notification settings
-# Change these in the private version
-EMAIL_ENABLED = True
-SMTP_SERVER = 'smtp.live.co.uk' # change with private version
-SMTP_PORT = 587
-EMAIL_USERNAME = 'email@live.co.uk' #hidden
-EMAIL_PASSWORD = 'xxxx'
-NOTIFICATION_RECIPIENT = 'recipient@test.com'
-#Telegram
-TELEGRAM_ENABLED = True
-BOT_TOKEN = 'xxx'
-CHAT_ID = 'xxx'
+TELEGRAM_ENABLED = config['telegram']['enabled']
+BOT_TOKEN = config['telegram']['bot_token']
+CHAT_ID = config['telegram']['chat_id']
+
+MAX_RETRIES = config['retry']['max_retries']
+RETRY_DELAY = config['retry']['delay']
+
+
+
+def retry(max_retries=3, delay=1):
+    ''' Retry decorator for when network issues or API rate limits can cause temporary failures'''
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    retries += 1
+                    logging.warning(f"Attempt {retries} failed: {e}")
+                    time.sleep(delay * retries)
+            raise Exception(f"Max retries ({max_retries}) exceeded for {func.__name__}")
+        return wrapper
+    return decorator
 
 
 # Initialize exchanges
@@ -46,6 +67,7 @@ for exchange_id in EXCHANGES:
     except Exception as e:
         logging.error(f"Failed to connect to {exchange_id}: {e}")
 
+@retry(max_retries=5, delay=0.5)
 def send_telegram_notification(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
@@ -54,6 +76,7 @@ def send_telegram_notification(message):
     }
     requests.post(url, json=payload)
 
+@retry(max_retries=5, delay=2)
 def fetch_prices():
     """Fetch the latest bid and ask prices from all exchanges."""
     prices = {}
