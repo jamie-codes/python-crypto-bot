@@ -4,6 +4,7 @@ import logging
 from decimal import Decimal
 import smtplib
 from email.mime.text import MIMEText
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,7 +21,7 @@ SYMBOLS = ['ICP/USDT', 'SOL/USDT', 'BASE/USDT', 'NEAR/USDT']  # The trading pair
 ARBITRAGE_THRESHOLD = Decimal('0.5')  # Minimum percentage profit for arbitrage
 TRADE_AMOUNT = Decimal('1')  # Default amount to trade (can be adjusted dynamically)
 
-# Email notification settings
+# Communication notification settings
 # Change these in the private version
 EMAIL_ENABLED = True
 SMTP_SERVER = 'smtp.live.co.uk' # change with private version
@@ -28,6 +29,11 @@ SMTP_PORT = 587
 EMAIL_USERNAME = 'email@live.co.uk' #hidden
 EMAIL_PASSWORD = 'xxxx'
 NOTIFICATION_RECIPIENT = 'recipient@test.com'
+#Telegram
+TELEGRAM_ENABLED = True
+BOT_TOKEN = 'xxx'
+CHAT_ID = 'xxx'
+
 
 # Initialize exchanges
 exchanges = {}
@@ -40,6 +46,13 @@ for exchange_id in EXCHANGES:
     except Exception as e:
         logging.error(f"Failed to connect to {exchange_id}: {e}")
 
+def send_telegram_notification(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message
+    }
+    requests.post(url, json=payload)
 
 def fetch_prices():
     """Fetch the latest bid and ask prices from all exchanges."""
@@ -120,6 +133,10 @@ def execute_trade(opportunity):
         # Send email notification
         if EMAIL_ENABLED:
             send_email_notification(opportunity, trade_amount)
+        # Send telegram notification
+        if TELEGRAM_ENABLED:
+            notification_message = f"{opportunity} - {trade_amount}"
+            send_telegram_notification(notification_message)
 
     except Exception as e:
         logging.error(f"Failed to execute trade: {e}")
