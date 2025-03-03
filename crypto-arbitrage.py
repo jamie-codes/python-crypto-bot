@@ -118,6 +118,16 @@ def find_arbitrage(prices):
                         })
     return opportunities
 
+def calculate_trade_amount(buy_exchange, sell_exchange, symbol, buy_price):
+    base_currency = symbol.split('/')[0]
+    quote_currency = symbol.split('/')[1]
+
+    buy_balance = buy_exchange.fetch_balance()[quote_currency]['free']
+    sell_balance = sell_exchange.fetch_balance()[base_currency]['free']
+
+    # Adjust trade amount based on balances and risk
+    trade_amount = min(TRADE_AMOUNT, sell_balance, buy_balance / buy_price)
+    return trade_amount
 
 def execute_trade(opportunity):
     """Execute arbitrage trade."""
@@ -126,14 +136,7 @@ def execute_trade(opportunity):
     symbol = opportunity['symbol']
 
     try:
-        # Check balances dynamically
-        base_currency = symbol.split('/')[0]
-        quote_currency = symbol.split('/')[1]
-
-        buy_balance = buy_exchange.fetch_balance()[quote_currency]['free']
-        sell_balance = sell_exchange.fetch_balance()[base_currency]['free']
-
-        trade_amount = min(TRADE_AMOUNT, sell_balance, buy_balance / opportunity['buy_price'])
+        trade_amount = calculate_trade_amount(buy_exchange, sell_exchange, symbol, opportunity['buy_price'])
 
         if trade_amount <= 0:
             logging.warning(f"Insufficient balance for trading {symbol}. Skipping.")

@@ -1,0 +1,12 @@
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def execute_trade(exchange, symbol, amount):
+    market_data = exchange.get_market_data(symbol)
+    if market_data:
+        logging.info(f"Market data: {market_data}")
+        # Implement trading logic here
+        logging.info(f"Executing trade for {symbol} with amount {amount}")
+    else:
+        logging.error("Failed to fetch market data.")
