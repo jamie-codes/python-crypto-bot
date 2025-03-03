@@ -1,0 +1,48 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Crypto Arbitrage Bot Monitoring",
+    "timezone": "browser",
+    "panels": [
+      {
+        "type": "graph",
+        "title": "Cycle Duration (seconds)",
+        "targets": [
+          {
+            "expr": "arbitrage_cycle_time_seconds",
+            "legendFormat": "Cycle Time",
+            "refId": "A"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+      },
+      {
+        "type": "stat",
+        "title": "Opportunities Found",
+        "targets": [
+          {
+            "expr": "arbitrage_opportunities_found",
+            "legendFormat": "Opportunities",
+            "refId": "B"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+      },
+      {
+        "type": "table",
+        "title": "Balances",
+        "targets": [
+          {
+            "expr": "arbitrage_balance_available",
+            "format": "table",
+            "refId": "C"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 8, "w": 24, "h": 10 }
+      }
+    ],
+    "schemaVersion": 34,
+    "version": 1,
+    "refresh": "5s"
+  }
+}
