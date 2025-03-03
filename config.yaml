@@ -23,6 +23,16 @@ email:
   password: xxxx
   recipient: recipient@test.com
 
+order_book:
+  depth: 5
+
+fees:
+  taker_fee: 0.1
+
+risk_management:
+  max_risk_percentage: 5
+  per_symbol: true
+
 telegram:
   enabled: true
   bot_token: xxx
