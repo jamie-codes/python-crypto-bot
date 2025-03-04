@@ -3,15 +3,27 @@ import time
 import logging
 import yaml
 from decimal import Decimal
+from functools import wraps
 from threading import Thread
 from prometheus_client import start_http_server, Summary, Gauge
+from logging import handlers
 
 # Load configuration from config.yaml
 with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 # Configure logging
-logging.basicConfig(level=getattr(logging, config['logging']['level'].upper()), format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+logger.setLevel(getattr(logging, config['logging']['level'].upper()))
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+logstash_handler = handlers.SysLogHandler(address=(config['efk']['logstash_host'], config['efk']['logstash_port']))
+logstash_handler.setFormatter(formatter)
+logger.addHandler(logstash_handler)
 
 # Prometheus metrics
 CYCLE_TIME = Summary('arbitrage_cycle_time_seconds', 'Time taken for each arbitrage cycle')

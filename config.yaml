@@ -41,3 +41,7 @@ telegram:
 retry:
   max_retries: 3
   delay: 1
+
+efk:
+  logstash_host: "localhost"  # Need to replace with your logstash host
+  logstash_port: 5000         
