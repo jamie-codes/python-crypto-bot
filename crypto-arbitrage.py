@@ -3,10 +3,18 @@ import time
 import logging
 import yaml
 from decimal import Decimal
-from functools import wraps
-from threading import Thread
 from prometheus_client import start_http_server, Summary, Gauge
 from logging import handlers
+from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_fixed
+from rich.console import Console
+from threading import Thread
+
+# Load environment variables
+load_dotenv()
+
+# Initialize rich console
+console = Console()
 
 # Load configuration from config.yaml
 with open('config.yaml', 'r') as file:
@@ -47,7 +55,7 @@ RISK_PER_SYMBOL = config['risk_management'].get('per_symbol', True)
 exchanges = {}
 balances = {}
 
-
+@retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_fixed(RETRY_DELAY))
 def initialize_exchanges():
     for exchange_id in EXCHANGES:
         exchange = getattr(ccxt, exchange_id)()
@@ -55,6 +63,7 @@ def initialize_exchanges():
         exchanges[exchange_id] = exchange
 
 
+@retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_fixed(RETRY_DELAY))
 def update_balances():
     for exchange_id, exchange in exchanges.items():
         balance = exchange.fetch_balance()
@@ -63,16 +72,23 @@ def update_balances():
             BALANCE_AVAILABLE.labels(exchange=exchange_id, currency=currency).set(amount)
 
 
+@retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_fixed(RETRY_DELAY))
 def fetch_prices():
     prices = {}
     threads = []
 
     def fetch(exchange_id, exchange):
         for symbol in SYMBOLS:
-            ticker = exchange.fetch_ticker(symbol)
-            if exchange_id not in prices:
-                prices[exchange_id] = {}
-            prices[exchange_id][symbol] = ticker
+            try:
+                ticker = exchange.fetch_ticker(symbol)
+                if ticker['ask'] is None or ticker['bid'] is None:
+                    logger.warning(f"Incomplete ticker data for {symbol} on {exchange_id}")
+                    continue
+                if exchange_id not in prices:
+                    prices[exchange_id] = {}
+                prices[exchange_id][symbol] = ticker
+            except Exception as e:
+                logger.error(f"Error fetching ticker for {symbol} on {exchange_id}: {e}")
 
     for exchange_id, exchange in exchanges.items():
         thread = Thread(target=fetch, args=(exchange_id, exchange))
@@ -122,26 +138,31 @@ def execute_arbitrage():
             opportunities = find_arbitrage_opportunities(prices)
             OPPORTUNITIES_FOUND.set(len(opportunities))
             if not opportunities:
-                logging.info("No opportunities found this cycle.")
+                console.log("[bold yellow]No opportunities found this cycle.[/bold yellow]")
             for opportunity in opportunities:
                 symbol = opportunity['symbol']
                 buy_exchange = exchanges[opportunity['buy_exchange']]
                 sell_exchange = exchanges[opportunity['sell_exchange']]
                 base_currency = symbol.split('/')[0]
                 buy_balance = balances[opportunity['buy_exchange']].get(base_currency, {}).get('free', 0)
+
+                if buy_balance == 0:
+                    console.log(f"[bold red]Zero balance for {base_currency} on {opportunity['buy_exchange']}[/bold red]")
+                    continue
+
                 trade_amount = calculate_risk_adjusted_trade_amount(buy_balance, opportunity['buy_price'])
 
                 if trade_amount <= 0:
-                    logging.warning(f"Insufficient balance for {symbol}")
+                    console.log(f"[bold red]Insufficient trade amount for {symbol}[/bold red]")
                     continue
 
                 buy_exchange.create_market_buy_order(symbol, trade_amount)
                 sell_exchange.create_market_sell_order(symbol, trade_amount)
-                logging.info(f"Executed arbitrage for {symbol} with net profit {opportunity['net_profit']}%")
+                console.log(f"[bold green]Executed arbitrage for {symbol} with net profit {opportunity['net_profit']}%[/bold green]")
 
-            time.sleep(1)
+            time.sleep(RETRY_DELAY)
         except Exception as e:
-            logging.error(f"Error during arbitrage execution: {e}")
+            logger.error(f"Error during arbitrage execution: {e}")
             time.sleep(RETRY_DELAY)
 
 

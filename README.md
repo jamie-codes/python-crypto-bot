@@ -11,7 +11,6 @@ python-crypto-bot/
 ├── crypto-arbitrage.py              # The main arbitrage bot script
 ├── README.md                        # Documentation and usage instructions
 ├── requirements.txt                 # Python dependencies
-├── tree.log                         # Optional log of the project directory structure
 ├── etc/
 │   ├── grafana/
 │   │   └── dashboards/
@@ -46,6 +45,12 @@ python-crypto-bot/
 - **Portfolio & Risk Management**: Trades respect maximum exposure per symbol.
 - **Parallel Price Fetching**: Faster, multi-threaded price collection.
 - **Balance Caching**: Optimized balance updates to reduce API load.
+
+## New Libraries Included
+
+- **python-dotenv**: Load environment variables from `.env` files.
+- **tenacity**: Advanced retry mechanisms for API calls.
+- **rich**: Enhanced console output with better formatting.
 
 ---
 
@@ -88,6 +93,41 @@ python-crypto-bot/
    ```bash
    python crypto-arbitrage.py
    ```
+
+---
+
+
+## Optional: Run on EC2 with Docker Compose
+These optional steps will Dockerize the bot and run it on an AWS EC2 instance, along with bundling Prometheus, Grafana, and Logstash to run together.
+
+1. Launch a **t2.micro** EC2 instance (Ubuntu 20.04 or Amazon Linux).
+2. Install Docker:
+   ```bash
+   sudo apt update
+   sudo apt install -y docker.io
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   sudo usermod -aG docker ubuntu
+   ```
+3. Install Docker Compose:
+   ```bash
+   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+4. Clone the repository:
+   ```bash
+   git clone https://github.com/jamie-codes/python-crypto-bot.git
+   cd python-crypto-bot
+   ```
+5. Add your **API keys** and configure `config.yaml`.
+6. Build and run the full monitoring stack:
+   ```bash
+   docker-compose up --build -d
+   ```
+7. Access your monitoring tools:
+   - Prometheus: `http://<EC2-IP>:9090`
+   - Grafana: `http://<EC2-IP>:3000`
+   - Kibana: `http://<EC2-IP>:5601`
 
 ---
 
