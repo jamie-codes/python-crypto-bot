@@ -51,7 +51,6 @@ python-crypto-bot/
 - **python-dotenv**: Load environment variables from `.env` files.
 - **tenacity**: Advanced retry mechanisms for API calls.
 - **rich**: Enhanced console output with better formatting.
-- **pandas**: Data handling and future trade analysis.
 
 ---
 
