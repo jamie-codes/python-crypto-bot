@@ -8,6 +8,7 @@ from logging import handlers
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_fixed
 from rich.console import Console
+from threading import Thread
 
 # Load environment variables
 load_dotenv()
@@ -71,6 +72,62 @@ def update_balances():
             BALANCE_AVAILABLE.labels(exchange=exchange_id, currency=currency).set(amount)
 
 
+@retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_fixed(RETRY_DELAY))
+def fetch_prices():
+    prices = {}
+    threads = []
+
+    def fetch(exchange_id, exchange):
+        for symbol in SYMBOLS:
+            try:
+                ticker = exchange.fetch_ticker(symbol)
+                if ticker['ask'] is None or ticker['bid'] is None:
+                    logger.warning(f"Incomplete ticker data for {symbol} on {exchange_id}")
+                    continue
+                if exchange_id not in prices:
+                    prices[exchange_id] = {}
+                prices[exchange_id][symbol] = ticker
+            except Exception as e:
+                logger.error(f"Error fetching ticker for {symbol} on {exchange_id}: {e}")
+
+    for exchange_id, exchange in exchanges.items():
+        thread = Thread(target=fetch, args=(exchange_id, exchange))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    return prices
+
+
+def calculate_risk_adjusted_trade_amount(balance, price):
+    risk_amount = (balance * MAX_RISK_PERCENTAGE) / 100
+    return min(risk_amount / price, TRADE_AMOUNT)
+
+
+def find_arbitrage_opportunities(prices):
+    opportunities = []
+    for symbol in SYMBOLS:
+        for buy_exchange_id, buy_data in prices.items():
+            for sell_exchange_id, sell_data in prices.items():
+                if buy_exchange_id == sell_exchange_id:
+                    continue
+                buy_price = buy_data[symbol]['ask']
+                sell_price = sell_data[symbol]['bid']
+                profit = ((sell_price - buy_price) / buy_price) * 100 - (TAKER_FEES * 2)
+                if profit >= ARBITRAGE_THRESHOLD:
+                    opportunities.append({
+                        'symbol': symbol,
+                        'buy_exchange': buy_exchange_id,
+                        'sell_exchange': sell_exchange_id,
+                        'buy_price': buy_price,
+                        'sell_price': sell_price,
+                        'net_profit': profit
+                    })
+    return opportunities
+
+
 @CYCLE_TIME.time()
 def execute_arbitrage():
     initialize_exchanges()
@@ -88,17 +145,22 @@ def execute_arbitrage():
                 sell_exchange = exchanges[opportunity['sell_exchange']]
                 base_currency = symbol.split('/')[0]
                 buy_balance = balances[opportunity['buy_exchange']].get(base_currency, {}).get('free', 0)
+
+                if buy_balance == 0:
+                    console.log(f"[bold red]Zero balance for {base_currency} on {opportunity['buy_exchange']}[/bold red]")
+                    continue
+
                 trade_amount = calculate_risk_adjusted_trade_amount(buy_balance, opportunity['buy_price'])
 
                 if trade_amount <= 0:
-                    console.log(f"[bold red]Insufficient balance for {symbol}[/bold red]")
+                    console.log(f"[bold red]Insufficient trade amount for {symbol}[/bold red]")
                     continue
 
                 buy_exchange.create_market_buy_order(symbol, trade_amount)
                 sell_exchange.create_market_sell_order(symbol, trade_amount)
                 console.log(f"[bold green]Executed arbitrage for {symbol} with net profit {opportunity['net_profit']}%[/bold green]")
 
-            time.sleep(1)
+            time.sleep(RETRY_DELAY)
         except Exception as e:
             logger.error(f"Error during arbitrage execution: {e}")
             time.sleep(RETRY_DELAY)
