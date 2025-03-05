@@ -9,6 +9,8 @@ This Python script is a cryptocurrency arbitrage trading bot using the [CCXT lib
 python-crypto-bot/
 ├── config.yaml                      # Main configuration file for exchanges, thresholds, and settings
 ├── crypto-arbitrage.py              # The main arbitrage bot script
+├── Dockerfile                       # Dockerfile for optionally containerizing the app
+├── docker-compose.yml               # Docker compose file to bundle the monitoring tools together
 ├── README.md                        # Documentation and usage instructions
 ├── requirements.txt                 # Python dependencies
 ├── etc/
