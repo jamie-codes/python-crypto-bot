@@ -1,0 +1,48 @@
+{
+    "title": "Crypto Arbitrage Bot Logs",
+    "panels": [
+      {
+        "type": "logstream",
+        "gridData": { "x": 0, "y": 0, "w": 24, "h": 10 },
+        "embeddableConfig": {
+          "logView": {
+            "logViewId": "default"
+          },
+          "filters": [],
+          "query": { "language": "kuery", "query": "" },
+          "timeRange": { "from": "now-24h", "to": "now" }
+        },
+        "title": "Live Log Stream"
+      },
+      {
+        "type": "metric",
+        "gridData": { "x": 0, "y": 10, "w": 12, "h": 4 },
+        "embeddableConfig": {
+          "metrics": [
+            {
+              "aggregation": "count",
+              "field": "",
+              "label": "Total Logs"
+            }
+          ],
+          "timeRangeMode": "LAST_VALUE"
+        },
+        "title": "Total Logs"
+      },
+      {
+        "type": "table",
+        "gridData": { "x": 12, "y": 10, "w": 12, "h": 4 },
+        "embeddableConfig": {
+          "columns": ["@timestamp", "loglevel", "message"],
+          "sort": [["@timestamp", "desc"]],
+          "timeRangeMode": "LAST_VALUE"
+        },
+        "title": "Recent Logs Table"
+      }
+    ],
+    "timeRange": {
+      "from": "now-24h",
+      "to": "now"
+    }
+  }
+  

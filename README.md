@@ -1,31 +1,63 @@
 # Cryptocurrency Arbitrage Bot
 Author: Jamie McKee
 
-This Python script is an automated cryptocurrency arbitrage trading bot that utilizes the [CCXT library](https://github.com/ccxt/ccxt) to identify and execute profitable trades across multiple exchanges, initially only on a test network. The bot is designed to trade the following cryptocurrency pairs:
+This Python script is a cryptocurrency arbitrage trading bot using the [CCXT library](https://github.com/ccxt/ccxt). It identifies and executes profitable trades across multiple exchanges and now includes enhanced monitoring, risk management, and logging features.
+
+## Directory Structure
+
+```plaintext
+python-crypto-bot/
+├── config.yaml                      # Main configuration file for exchanges, thresholds, and settings
+├── crypto-arbitrage.py              # The main arbitrage bot script
+├── README.md                        # Documentation and usage instructions
+├── requirements.txt                 # Python dependencies
+├── tree.log                         # Optional log of the project directory structure
+├── etc/
+│   ├── grafana/
+│   │   └── dashboards/
+│   │       └── crypto_arbitrage_dashboard.json  # Grafana dashboard for metrics
+│   ├── kibana/
+│   │   └── crypto_arbitrage_logs_dashboard.json  # Kibana dashboard for log monitoring
+│   ├── logstash/
+│   │   └── logstash.conf            # Logstash configuration for forwarding logs to Elasticsearch
+│   └── prometheus/
+│       └── prometheus.yml           # Prometheus configuration for scraping bot metrics
+└── src/
+    ├── main.py                      # Optional additional logic or entry point
+    ├── trading_logic                # Placeholder for trading logic extensions
+    └── exchanges/
+        ├── binance.py               # Exchange-specific integration for Binance
+        └── coinbase.py              # Exchange-specific integration for Coinbase
+```
+
+## Supported Pairs
 
 - ICP/USDT
 - SOL/USDT
 - BASE/USDT
 - NEAR/USDT
 
-## Features
+## New Features
 
-- **Multi-Exchange Support**: Monitors and trades on Binance, Kraken, and Coinbase Pro.
-- **Arbitrage Detection**: Identifies price differences between exchanges and calculates potential profit percentages.
-- **Automated Trading**: Executes buy and sell orders to capitalize on arbitrage opportunities.
-- **Logging**: Provides detailed logs for operations, including detected opportunities and executed trades.
-- **Customizable Settings**: Adjustable profit thresholds, trade amounts, and trading pairs.
+- **EFK Integration**: Logs are shipped to Elasticsearch via Logstash and visualized in Kibana.
+- **Prometheus + Grafana Monitoring**: Real-time metrics on cycle times, balances, and opportunities.
+- **Order Book Depth Analysis**: Ensures liquidity before trades.
+- **Transaction Cost Consideration**: Profit calculations include trading fees.
+- **Portfolio & Risk Management**: Trades respect maximum exposure per symbol.
+- **Parallel Price Fetching**: Faster, multi-threaded price collection.
+- **Balance Caching**: Optimized balance updates to reduce API load.
 
 ---
 
 ## Prerequisites
 
 1. Python 3.6+
-2. The `ccxt` library installed:
+2. Install dependencies:
    ```bash
-   pip install ccxt
+   pip install -r requirements.txt
    ```
-3. API keys for the supported exchanges (Binance, Kraken, Coinbase Pro).
+3. Running Prometheus and Grafana.
+4. Running the EFK stack (Elasticsearch, Fluentd/Logstash, Kibana).
 
 ---
 
@@ -37,38 +69,33 @@ This Python script is an automated cryptocurrency arbitrage trading bot that uti
    cd python-crypto-bot
    ```
 
-2. **Configure API Keys**
-   Replace `YOUR_API_KEY`, `YOUR_SECRET_KEY`, and any other necessary credentials for each exchange in the script where the `ccxt` instances are initialized.
+2. **Configure API Keys & Credentials**
+   Update your API keys inside your `.env` or `config.yaml` as needed.
 
-3. **Install Dependencies**
-   Ensure you have all required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+3. **Configure `config.yaml`**
+   Configure the config to your requirements.
 
-4. **Run the Bot**
-   Execute the script:
+4. **Run Prometheus**
+   Use `prometheus.yml` to scrape metrics on port `8000`.
+
+5. **Run Logstash**
+   Configure `logstash.conf` to listen on port `5000` and forward logs to Elasticsearch.
+
+6. **Import Grafana/Kibana Dashboards**
+   Upload the provided JSON files to Grafana and Kibana to be able to visualise the metrics and logs.
+
+7. **Start the Bot**
    ```bash
    python crypto-arbitrage.py
    ```
 
 ---
 
-## Usage
+## Monitoring
 
-The bot will:
-
-1. Fetch the latest bid and ask prices for the configured trading pairs from all supported exchanges.
-2. Identify arbitrage opportunities based on the configured profit threshold (default: 0.5%).
-3. Automatically execute trades for profitable opportunities.
-
-### Customization
-
-You can adjust the following parameters in the script:
-
-- `SYMBOLS`: Add or remove trading pairs.
-- `ARBITRAGE_THRESHOLD`: Set the minimum profit percentage for trades.
-- `TRADE_AMOUNT`: Change the amount of cryptocurrency to trade.
+- **Prometheus**: Metrics at `http://localhost:8000/metrics`.
+- **Grafana**: Visual dashboards for cycle time, balances, and opportunities.
+- **Kibana**: Live log streams and historical log analysis.
 
 ---
 
@@ -89,18 +116,10 @@ You can adjust the following parameters in the script:
 
 ## Enhancements (Planned Features)
 
-1. **Fee Awareness**: Incorporate trading fees in profit calculations.
-2. **Dynamic Trade Amounts**: Adjust trade sizes based on available balances.
-3. **Portfolio Rebalancing**: Automate fund transfers between exchanges.
-4. **Simulation Mode**: Test the bot in a non-trading environment.
-5. **Database Integration**: Store historical data for performance analysis.
-6. **Error Handling and Resilience**: Implement retry logic with exponential backoff for failed API calls and handle network issues gracefully.
-7. **Web or Command Line Dashboard**: Create a real-time dashboard to display arbitrage opportunities, account balances, and trade history.
-8. **Email or SMS Alerts**: Notify users when significant arbitrage opportunities or errors occur.
-9. **Latency and Slippage Mitigation**: Monitor latency between exchanges and account for slippage in profit calculations.
-10. **Rate Limiting Compliance**: Respect exchange rate limits to avoid temporary bans.
-11. **Machine Learning Optimization**: Use machine learning to predict and filter profitable opportunities.
-12. **Twitter/Social Media sentiment analysis**: Look into IBKR for sentiment values from news wire that includes tweets that impact crypto stocks.
----
-
-
+- Machine Learning Opportunity Filtering
+- Portfolio Rebalancing
+- Simulation/Test Mode
+- Database Integration
+- Advanced Latency and Slippage Analysis
+- Social Sentiment Analysis (e.g., Twitter, IBKR feeds)
+- Integration with other exchanges (e.g., Huobi, Binance Futures)
