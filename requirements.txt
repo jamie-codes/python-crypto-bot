@@ -2,3 +2,6 @@ ccxt==4.1.89
 PyYAML==6.0
 requests==2.31.0
 prometheus-client==0.17.1
+python-dotenv==1.0.0
+tenacity==8.2.2
+rich==13.7.0

@@ -46,6 +46,13 @@ python-crypto-bot/
 - **Parallel Price Fetching**: Faster, multi-threaded price collection.
 - **Balance Caching**: Optimized balance updates to reduce API load.
 
+## New Libraries Included
+
+- **python-dotenv**: Load environment variables from `.env` files.
+- **tenacity**: Advanced retry mechanisms for API calls.
+- **rich**: Enhanced console output with better formatting.
+- **pandas**: Data handling and future trade analysis.
+
 ---
 
 ## Prerequisites
@@ -89,6 +96,7 @@ python-crypto-bot/
    ```
 
 ---
+
 
 ## Optional: Run on EC2 with Docker Compose
 These optional steps will Dockerize the bot and run it on an AWS EC2 instance, along with bundling Prometheus, Grafana, and Logstash to run together.
